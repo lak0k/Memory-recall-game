@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playing Card Memory Recall Game</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            background-color: #f0f4f8;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .form-container {
+            margin-bottom: 20px;
+        }
+
+        .form-container input {
+            padding: 10px;
+            margin: 10px;
+            font-size: 1rem;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        .cards-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+
+        .card {
+            display: inline-block;
+            text-align: center;
+            border: 2px solid #ccc;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 10px;
+            width: 100px;
+            height: 150px;
+            line-height: 150px;
+            font-size: 1.5rem;
+            color: white;
+            background-color: #007bff;
+            transition: transform 0.3s;
+        }
+
+        .card img {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+        }
+
+        .hidden {
+            background-color: #ccc !important;
+            color: #ccc;
+            border-color: #ccc;
+        }
+
+        #recall-section {
+            margin-top: 30px;
+            display: none;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        select {
+            padding: 10px;
+            margin: 10px;
+            font-size: 1rem;
+        }
+
+        .results {
+            margin-top: 20px;
+            font-size: 1.2rem;
+        }
+
+        #start-button, #submit-button, #restart-button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        #start-button:hover, #submit-button:hover, #restart-button:hover {
+            background-color: #218838;
+        }
+
+        .hidden {
+            visibility: hidden;
+        }
+
+        .scoreboard {
+            margin-top: 40px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .scoreboard h2 {
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .scoreboard ul {
+            list-style: none;
+            padding: 0;
+            font-size: 1.2rem;
+        }
+
+        .scoreboard li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Playing Card Memory Recall Game</h1>
+
+    <div class="form-container" id="form-container">
+        <input type="text" id="username" placeholder="Enter your name" />
+        <button id="start-button">Start Game</button>
+    </div>
+
+    <div class="cards-container" id="cards-container">
+        <!-- Playing cards will be shown here -->
+    </div>
+
+    <div id="recall-section">
+        <h3>Recall the Playing Cards</h3>
+        <div id="recall-container">
+            <!-- Recall inputs will appear here -->
+        </div>
+        <button id="submit-button">Submit</button>
+    </div>
+
+    <div class="results" id="results-container"></div>
+
+    <button id="restart-button" class="hidden">Restart Game</button>
+
+    <div class="scoreboard">
+        <h2>Scoreboard</h2>
+        <ul id="scoreboard-list">
+            <!-- Scores will be listed here -->
+        </ul>
+    </div>
+
+    <script>
+        const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+        const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        let selectedCards = [];
+        let recallInputs = [];
+        let userScores = {};
+        let attemptsLeft = 11;
+
+        // Helper to get a random suit
+        function getRandomSuit() {
+            return suits[Math.floor(Math.random() * suits.length)];
+        }
+
+        // Helper to get a random value
+        function getRandomValue() {
+            return values[Math.floor(Math.random() * values.length)];
+        }
+
+        // Show the selected cards to the user
+        function showCards(cards) {
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+            cards.forEach(card => {
+                const cardDiv = document.createElement('div');
+                cardDiv.classList.add('card');
+                const img = document.createElement('img');
+                img.src = `https://deckofcardsapi.com/static/img/${card.value}${card.suit[0].toUpperCase()}.png`;  // Images of playing cards
+                cardDiv.appendChild(img);
+                container.appendChild(cardDiv);
+            });
+        }
+
+        // Hide the cards to start the recall phase
+        function hideCards() {
+            const container = document.getElementById('cards-container');
+            container.querySelectorAll('.card img').forEach(card => {
+                card.src = '';  // Hide the card images
+            });
+        }
+
+        // Show recall inputs for the user to enter their answers
+        function showRecallInputs(numItems) {
+            const recallContainer = document.getElementById('recall-container');
+            recallContainer.innerHTML = '';
+
+            for (let i = 0; i < numItems; i++) {
+                const valueSelect = createSelect('value', i, values);
+                const suitSelect = createSelect('suit', i, suits.map(s => s.charAt(0).toUpperCase() + s.slice(1)));
+
+                recallContainer.appendChild(valueSelect);
+                recallContainer.appendChild(suitSelect);
+                recallInputs.push({ valueSelect, suitSelect });
+            }
+        }
+
+        // Helper function to create a select input for recall
+        function createSelect(type, index, options) {
+            const select = document.createElement('select');
+            select.id = `${type}-${index}`;
+            options.forEach(option => {
+                const optElement = document.createElement('option');
+                optElement.value = option;
+                optElement.innerText = option;
+                select.appendChild(optElement);
+            });
+            return select;
+        }
+
+        // Compare user input with the correct answers
+        function checkAnswers() {
+            let score = 0;
+            const resultContainer = document.getElementById('results-container');
+            const username = document.getElementById('username').value.trim();
+            resultContainer.innerHTML = '';
+
+            selectedCards.forEach((card, index) => {
+                const userValue = recallInputs[index].valueSelect.value;
+                const userSuit = recallInputs[index].suitSelect.value.toLowerCase();
+
+                if (userValue === card.value && userSuit === card.suit) {
+                    score++;
+                    resultContainer.innerHTML += `<p>Card ${index + 1}: Correct (Card: ${card.value} of ${card.suit})</p>`;
+                } else {
+                    resultContainer.innerHTML += `<p>Card ${index + 1}: Incorrect (You said: ${userValue} of ${userSuit}, Correct: ${card.value} of ${card.suit})</p>`;
+                }
+            });
+
+            resultContainer.innerHTML += `<p>Total Score: ${score} out of ${selectedCards.length}</p>`;
+
+            // Update the score and attempts
+            if (username) {
+                if (!userScores[username]) {
+                    userScores[username] = { score: 0, attempts: 0 };
+                }
+                userScores[username].score += score;
+                userScores[username].attempts += 1;
+            }
+
+            // Display the scoreboard
+            displayScoreboard();
+
+            // Show the restart button
+            document.getElementById('restart-button').classList.remove('hidden');
+        }
+
+        // Display the scoreboard
+        function displayScoreboard() {
+            const scoreboardList = document.getElementById('scoreboard-list');
+            scoreboardList.innerHTML = '';
+            for (const user in userScores) {
+                if (userScores[user].attempts <= 11) {
+                    scoreboardList.innerHTML += `<li>${user}: ${userScores[user].score} points (${userScores[user].attempts} attempts)</li>`;
+                } else {
+                    scoreboardList.innerHTML += `<li>${user}: Max attempts reached (11/11)</li>`;
+                }
+            }
+        }
+
+        // Start the game
+        document.getElementById('start-button').addEventListener('click', () => {
+            const username = document.getElementById('username').value.trim();
+            if (!username) {
+                alert('Please enter your name.');
+                return;
+            }
+
+            if (userScores[username] && userScores[username].attempts >= 11) {
+                alert(`${username}, you have reached the maximum number of attempts (11).`);
+                return;
+            }
+
+            selectedCards = [];
+            for (let i = 0; i < 4; i++) {  // Show 4 cards to the user
+                selectedCards.push({
+                    value: getRandomValue(),
+                    suit: getRandomSuit()
+                });
+            }
+            showCards(selectedCards);
+
+            setTimeout(() => {
+                hideCards();
+                document.getElementById('start-button').style.display = 'none';
+                document.getElementById('recall-section').style.display = 'block';
+                showRecallInputs(selectedCards.length);
+            }, 5000);  // Show the cards for 5 seconds
+        });
+
+        // Submit answers
+        document.getElementById('submit-button').addEventListener('click', () => {
+            checkAnswers();
+        });
+
+        // Restart the game
+        document.getElementById('restart-button').addEventListener('click', () => {
+            document.getElementById('start-button').style.display = 'block';
+            document.getElementById('recall-section').style.display = 'none';
+            document.getElementById('results-container').innerHTML = '';
+            document.getElementById('restart-button').classList.add('hidden');
+        });
+    </script>
+
+</body>
+</html>
